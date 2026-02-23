@@ -4,8 +4,8 @@ This repository contains the source code, programmatic presentations, and the fi
 
 ## Repository Structure
 
-- **`Hard_Control/`**: Contains Python implementations and simulations for hard control strategies applied to Probabilistic Boolean Networks.
-- **`ICBBE/`**: Contains materials, models, or presentations related to the Alzheimer's disease modeling research.
+- **`Hard_Control/`**: Contains presentation materials for hard control strategies applied to Probabilistic Boolean Networks.
+- **`ICBBE/`**: Contains presentation materials related to the Alzheimer's disease modeling research.
 - **`Report/`**: The complete LaTeX source code and compiled PDF for the final MATH4999 capstone report.
 
 ## Presentations and Manim-Slides
