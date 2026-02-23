@@ -1,6 +1,6 @@
-# MATH4999-PBN: HKU MATH4999 Final Year Project
+HKU MATH4999 Final Year Project
 
-This repository contains the source code, programmatic presentations, and the final report for my Final Year Project (MATH4999) at the University of Hong Kong (HKU). The project explores **Probabilistic Boolean Networks (PBNs)** and its applications.
+This repository contains the source code, programmatic presentations, and the final report for my Final Year Project (MATH4999) at the University of Hong Kong (HKU). The project explores **Probabilistic Boolean Networks (PBNs)** and its applications in systems biology.
 
 ## Repository Structure
 
@@ -10,7 +10,7 @@ This repository contains the source code, programmatic presentations, and the fi
 
 ## Presentations and Manim-Slides
 
-A key component of this capstone was developing academic presentation skills. To effectively communicate complex mathematical concepts, I created programmatic, animated presentations using [Manim] and [Manim-Slides]. 
+A key component of this capstone was developing academic presentation skills. To effectively communicate complex mathematical concepts, I created programmatic, animated presentations using [Manim](https://docs.manim.community/en/stable/) and [Manim-Slides](https://www.manim.community/plugin/manim-slides/). 
 
 The presentation source code included in this repository covers:
 1. Foundational theories on optimal control in PBNs based on *Ching et al. (2009)*.
