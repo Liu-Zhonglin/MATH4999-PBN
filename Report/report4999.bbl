@@ -1,0 +1,53 @@
+\begin{thebibliography}{10}
+
+\bibitem{kitano2002systems}
+H.~Kitano, ``Systems biology: a brief overview,'' {\em science}, vol.~295,
+  no.~5560, pp.~1662--1664, 2002.
+
+\bibitem{mcadams1997stochastic}
+H.~H. McAdams and A.~Arkin, ``Stochastic mechanisms in gene expression,'' {\em
+  Proceedings of the National Academy of Sciences}, vol.~94, no.~3,
+  pp.~814--819, 1997.
+
+\bibitem{huang2009cancer}
+S.~Huang, I.~Ernberg, and S.~Kauffman, ``Cancer attractors: a systems view of
+  tumors from a gene network dynamics and developmental perspective,'' in {\em
+  Seminars in cell \& developmental biology}, vol.~20, pp.~869--876, Elsevier,
+  2009.
+
+\bibitem{shmulevich2002probabilistic}
+I.~Shmulevich, E.~R. Dougherty, S.~Kim, and W.~Zhang, ``Probabilistic boolean
+  networks: a rule-based uncertainty model for gene regulatory networks,'' {\em
+  Bioinformatics}, vol.~18, no.~2, pp.~261--274, 2002.
+
+\bibitem{kauffman1969metabolic}
+S.~A. Kauffman, ``Metabolic stability and epigenesis in randomly constructed
+  genetic nets,'' {\em Journal of theoretical biology}, vol.~22, no.~3,
+  pp.~437--467, 1969.
+
+\bibitem{ching2009optimal}
+W.-K. Ching, S.-Q. Zhang, Y.~Jiao, T.~Akutsu, N.-K. Tsing, and A.~Wong,
+  ``Optimal control policy for probabilistic boolean networks with hard
+  constraints,'' {\em IET Systems Biology}, vol.~3, no.~2, pp.~90--99, 2009.
+
+\bibitem{liu2025melanoma}
+Z.~Liu, ``A pbn-rl-xai framework for discovering a ``hit-and-run" therapeutic
+  strategy in melanoma,'' 2025.
+
+\bibitem{liu2025alzheimers}
+L.~Zhonglin, Z.~Louxin, and C.~W. Ki, ``Inferring progressive disconnection in
+  alzheimer{\textquoteright}s disease with probabilistic boolean networks,''
+  {\em bioRxiv}, 2025.
+
+\bibitem{schulman2017proximal}
+J.~Schulman, F.~Wolski, P.~Dhariwal, A.~Radford, and O.~Klimov, ``Proximal
+  policy optimization algorithms,'' {\em arXiv preprint arXiv:1707.06347},
+  2017.
+
+\bibitem{nohara2022explanation}
+Y.~Nohara, K.~Matsumoto, H.~Soejima, and N.~Nakashima, ``Explanation of machine
+  learning models using shapley additive explanation and application for real
+  data in hospital,'' {\em Computer Methods and Programs in Biomedicine},
+  vol.~214, p.~106584, 2022.
+
+\end{thebibliography}

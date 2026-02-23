@@ -1,0 +1,485 @@
+\documentclass[12pt, a4paper]{report}
+
+%--- Essential Packages ---
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath, amssymb, amsfonts} % For complex math
+\usepackage{graphicx}                    % For including figures
+\usepackage{geometry}                     % Page layout
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{setspace}      
+\usepackage{graphicx}              
+\usepackage{hyperref}                     % Clickable links
+\usepackage{cite}                         % Bibliography
+\usepackage{booktabs}                     % Professional tables
+\usepackage{algorithm}                    % For writing algorithms
+\usepackage{algpseudocode}                % Pseudocode style
+\usepackage{titlesec}                     % Section formatting
+\usepackage{xcolor}                       % For highlighting text
+\usepackage{caption}
+
+\usepackage{subcaption}
+
+%--- Page Setup ---
+\geometry{
+	left=2.5cm,
+	right=2.5cm,
+	top=2.5cm,
+	bottom=2.5cm
+}
+\onehalfspacing
+
+%--- User Macros ---
+\newcommand{\todo}[1]{\textcolor{red}{\textbf{[TODO: #1]}}}
+
+%--- Title Page ---
+\title{
+	\vspace{-1cm}
+	\includegraphics[width=0.9\textwidth]{logo}\par\vspace{0.8cm}
+	\textbf{\Huge \mbox{From Inference to Intelligent Control:}}\\
+	\textbf{\Large Applications of Probabilistic Boolean Networks\\ in Systems Biology}\\
+	\vspace{1cm}
+	\large MATH4999 Project Report
+}
+\author{
+	\textbf{Liu Zhonglin}\\
+	UID: 3035974614\\
+	Department of Mathematics\\
+	The University of Hong Kong\\
+	\vspace{0.5cm}\\
+	\textit{Supervisor: Prof. Ching Wai Ki}
+}
+\date{\today}
+
+\begin{document}
+	\maketitle
+
+	
+\begin{abstract}
+	This MATH4999 project investigates how mathematical modeling can support both scientific understanding and decision-making in complex biological systems. We use Probabilistic Boolean Networks (PBNs) as a unifying framework connecting three stages of an applied mathematics workflow: (i) model construction from data, (ii) principled control design from theory, and (iii) scalable control via modern learning-based methods.
+	
+	We first consider the inverse problem of modeling effective connectivity in the brain from resting-state fMRI across the Alzheimer's disease spectrum. By discretizing continuous signals into binary activity states and learning probabilistic logical interactions with anatomically informed priors, we obtain subject-specific PBNs whose influence matrices quantify directed network degradation. The inferred models capture a progressive weakening of pathways from Default Mode Network hubs to medial temporal lobe regions, providing a mathematically interpretable representation of the disconnection-syndrome hypothesis.
+	
+	We then formulate intervention as a finite-horizon optimal control problem for a PBN under hard constraints that limit the total number of treatments. Using dynamic programming, we review the Bellman recursions and boundary conditions that yield an optimal policy, highlighting both the rigor of the approach and the computational burden induced by large state spaces.
+	
+	Finally, we address this limitation by casting PBN control as a Markov decision process and applying reinforcement learning to a metastatic melanoma resistance network. The learned policies uncover time-dependent, non-intuitive ``hit-and-run'' perturbations that can drive the system toward therapy-sensitive behavior without requiring exhaustive enumeration. Overall, the project demonstrates how core mathematical tools---discretization, probabilistic modeling, Markov chains, optimization, and modern reinforcement learning---can be integrated to move from biological data to actionable control strategies.
+	
+	\noindent\textbf{Keywords:} probabilistic Boolean networks; systems biology; optimal control; reinforcement learning; Alzheimer's disease; melanoma.
+\end{abstract}
+
+\tableofcontents
+\newpage
+
+\chapter{Introduction}
+
+\section{The Systems Biology Context}
+
+Biological systems, ranging from intracellular gene regulatory networks (GRNs) to macroscopic neural circuits in the human brain, exhibit a high degree of complexity that defies simple reductionist analysis. Historically, biology focused on characterizing individual components---single genes, proteins, or neurons. However, the emergent behavior of a biological system---such as the decision of a cell to proliferate or undergo apoptosis, or the ability of the brain to retrieve a memory---arises not from individual elements but from the nonlinear interactions between them \cite{kitano2002systems}.
+
+Two fundamental characteristics define these systems:
+\begin{enumerate}
+	\item \textbf{Nonlinearity:} The relationship between input and output is rarely proportional. A small perturbation in a key regulatory gene can trigger a cascade of events leading to a drastic change in phenotype, while large perturbations elsewhere may be absorbed by the system's robustness.
+	\item \textbf{Stochasticity:} Biological processes are inherently noisy. Gene expression is subject to transcriptional bursting, and neural firing is influenced by thermal noise and synaptic variability \cite{mcadams1997stochastic}. Consequently, a deterministic model is often insufficient to capture the true dynamics of living systems.
+\end{enumerate}
+
+From a control theory perspective, diseases can be viewed as ``attractor states'' in a system's state space. For instance, cancer represents a stable state of uncontrolled growth \cite{huang2009cancer}, while neurodegenerative diseases such as Alzheimer's disease (AD) are often associated with shifts in large-scale brain network connectivity. The ultimate goal of systems biology is not merely to model these states, but to intervene---to drive the system from a diseased attractor to a healthy one.
+
+\section{The PBN Framework}
+
+To model the stochastic, nonlinear interactions inherent in biological systems, this report utilizes the framework of \textbf{Probabilistic Boolean Networks (PBNs)}.
+
+First introduced by Shmulevich et al.~\cite{shmulevich2002probabilistic}, PBNs extend the classical Boolean Network (BN) model proposed by Kauffman \cite{kauffman1969metabolic}. In a standard BN, the state of a gene (or brain region) is binary: $0$ (OFF/inactive) or $1$ (ON/active), and the state of a node at the next time step is determined by a fixed logical function of its regulators. However, biological regulation is rarely deterministic due to intracellular noise and unmeasured variables. PBNs address this by allowing each node to select from a set of predictor functions according to a probability distribution, thereby introducing stochasticity into the system.
+
+\subsection{Mathematical Formulation}
+Formally, a PBN consists of a set of $n$ nodes $V = \{x_1, x_2, \dots, x_n\}$. The state of node $x_i$ at time $t$ is denoted by $x_i(t) \in \{0, 1\}$. The global state of the network is given by
+\begin{equation}
+	\mathbf{x}(t) = (x_1(t), x_2(t), \dots, x_n(t))^T.
+\end{equation}
+The state space $S$ contains all possible global states, with cardinality $|S| = 2^n$.
+
+Unlike a deterministic BN, where each node $x_i$ is governed by a single Boolean function, in a PBN each node $x_i$ has a set of possible predictor functions
+\[
+F_i = \{f_1^{(i)}, f_2^{(i)}, \dots, f_{l(i)}^{(i)}\}.
+\]
+At each time step, a function $f_j^{(i)}$ is selected to determine the next state of node $x_i$ with probability $c_j^{(i)}$, such that
+\begin{equation}
+	\sum_{j=1}^{l(i)} c_j^{(i)} = 1, \quad i = 1, \dots, n.
+\end{equation}
+A realization of the network is a specific combination of functions (one for each node). There are $N = \prod_{i=1}^n l(i)$ possible realizations (constituent Boolean networks). The probability of selecting the $k$-th constituent network is denoted by $p_k$.
+
+\subsection{Markov Chain Dynamics}
+The transition process among the states in $S$ is a Markov chain process \cite{ching2009optimal}. The dynamics are described by a transition probability matrix $A \in \mathbb{R}^{2^n \times 2^n}$.
+
+Let $A_k$ be the transition matrix (a permutation matrix) corresponding to the $k$-th constituent deterministic Boolean network. Under the standard instantaneous randomization assumption (i.e., a constituent network is sampled at each time step), the transition matrix of the PBN is the mixture
+\begin{equation}
+	A = \sum_{k=1}^{N} p_k A_k .
+\end{equation}
+The entry $A_{uv}$ gives the one-step transition probability from state $u$ to state $v$:
+\begin{equation}
+	\Pr\{\mathbf{x}(t+1) = v \mid \mathbf{x}(t) = u\} = A_{uv}.
+\end{equation}
+
+To match the notation used in the optimal control formulation (Chapter~3), we denote the uncontrolled transition matrix by
+\begin{equation}
+	P_0 := A .
+\end{equation}
+Let $v(t)\in\mathbb{R}^{2^n}$ denote the state probability distribution vector at time $t$, where the $m$-th component is the probability of the system being in the $m$-th state. Then the evolution of the distribution is
+\begin{equation}
+	v(t+1) = P_0\, v(t).
+\end{equation}
+
+\subsection{Long-term Behavior: Attractors}
+For a deterministic BN, an attractor is a fixed point or a limit cycle. For a PBN viewed as a Markov chain, the analogous objects are \textbf{recurrent communicating classes} (closed sets of states that the chain cannot leave once entered). In this report, we use ``attractor'' informally to refer to these stable long-run phenotypes represented by such recurrent sets.
+
+In biological terms, attractors correspond to stable cellular phenotypes. For example, in the context of melanoma, some attractors represent therapy-sensitive states, while others correspond to drug-resistant states \cite{liu2025melanoma}.
+
+\subsection{Network Topology: The Influence Matrix}
+To quantify regulatory relationships between nodes, we utilize the \textbf{influence matrix}. The influence of node $x_j$ on node $x_i$, denoted by $I(x_j \to x_i)$, is defined as the expected sensitivity of the predictor functions of $x_i$ to changes in $x_j$.
+
+Let $f$ be a Boolean function and suppose $x_j$ is among its inputs. The sensitivity of $f$ to $x_j$ is defined as the probability (under a uniform input distribution) that flipping $x_j$ changes the output of $f$:
+\begin{equation}
+	S(f, x_j) = \frac{1}{2^{d}} \sum_{\mathbf{s} \in \{0,1\}^{d}} \mathbb{I}\big(f(\mathbf{s}) \neq f(\mathbf{s}^{\oplus j})\big),
+\end{equation}
+where $d$ is the number of inputs of $f$, and $\mathbf{s}^{\oplus j}$ denotes $\mathbf{s}$ with its $j$-th component flipped (in the coordinate system of $f$'s inputs). If $x_j$ is not an input of $f$, we set $S(f,x_j)=0$.
+
+The total influence is the weighted sum of these sensitivities across all predictor functions for node $x_i$:
+\begin{equation}
+	I(x_j \to x_i) = \sum_{k=1}^{l(i)} c_k^{(i)} \, S\!\left(f_k^{(i)}, x_j\right).
+\end{equation}
+This metric provides a quantitative map of the network's regulatory structure, allowing for the identification of critical pathways, such as the progressive disconnection of brain regions in Alzheimer's disease \cite{liu2025alzheimers}.
+
+\section{Report Roadmap}
+
+This report follows the lifecycle of a systems biology problem: inferring a model from data, establishing theoretical bounds for control, and applying modern computational methods for practical intervention.
+
+\begin{enumerate}
+	\item \textbf{Modeling (Chapter 2): The inverse problem.} \\
+	Before a system can be controlled, its topology must be estimated. In practice, we rarely have the full network structure; instead, we observe noisy time series. Chapter~2 addresses the problem of \textit{network inference}. Based on \cite{liu2025alzheimers}, we present a framework for constructing PBNs from fMRI data to model effective connectivity in Alzheimer's disease (AD). We demonstrate how PBNs can quantify progressive disconnection between the Default Mode Network and the medial temporal lobe.
+	
+	\item \textbf{Classical control (Chapter 3): Theoretical foundations.} \\
+	Once a model is established, we ask: what is the mathematically optimal way to intervene? Chapter~3 reviews finite-horizon optimal control in PBNs with \textit{hard constraints}. Based on Ching et al.~\cite{ching2009optimal}, we explore how to minimize the probability of entering a disease state while strictly limiting the number of interventions---a crucial consideration for minimizing drug toxicity.
+	
+	\item \textbf{Intelligent control (Chapter 4): Modern approaches.} \\
+	While classical control theory provides exact solutions, it suffers from the ``curse of dimensionality,'' making it computationally intractable for large networks. Chapter~4 introduces \textit{reinforcement learning (RL)} as a scalable alternative. Based on \cite{liu2025melanoma}, we apply a deep RL agent to a 12-gene melanoma network and show that the agent can discover non-intuitive ``hit-and-run'' strategies that bypass innate drug resistance.
+\end{enumerate}
+	
+
+
+\chapter{Data-Driven Modeling: Inferring Brain Connectivity in Alzheimer's Disease}
+\label{chap:modeling}
+
+
+\textit{Based on: Liu, Zhang, and Ching (ICBBE 2025)~\cite{liu2025alzheimers}}
+
+\section{Introduction}
+Before a system can be controlled, it must be modeled. In this chapter, we address the inverse problem: inferring the PBN structure from observational data (fMRI). The modern understanding of Alzheimer's disease (AD) has evolved from a focus on isolated regional pathology to a network-based perspective, viewing the disease as a ``disconnection syndrome.'' From this viewpoint, cognitive symptoms arise from disrupted communication within and between large-scale brain networks.
+
+While functional Magnetic Resonance Imaging (fMRI) has enabled the investigation of functional connectivity, traditional methods often rely on statistical correlations. These are inherently undirected and cannot reveal the causal mechanisms driving network dysfunction. To address this, we introduce a novel framework applying Probabilistic Boolean Networks (PBNs) to model effective brain connectivity. PBNs offer a distinct advantage by maintaining computational efficiency through Boolean discretization while preserving the ability to model complex, nonlinear logical relationships and stochastic behaviors inherent in neural systems. This chapter details the methodology used to infer these networks from resting-state fMRI data across the AD spectrum—comprising Normal Controls (NC), Mild Cognitive Impairment (MCI), and AD patients—and presents the biological validation of the inferred models.
+
+\section{Methodology: From Continuous Signals to Boolean Logic}
+
+\subsection{Iterative HMM Binarization}
+The application of Boolean network models to continuous biological signals requires a robust method for discretization. Simple thresholding techniques are often insufficient for resting-state fMRI (rs-fMRI) data due to signal drift, noise, and the absence of defined task timings to inform state transitions. To address this, we developed a novel, fully data-driven iterative Hidden Markov Model (HMM).
+
+This model is designed to infer the transitions between unobserved ``low'' (0) and ``high'' (1) neural activity states directly from the temporal dynamics of the signal itself. Mathematically, the HMM is defined by the tuple $\lambda = (S, O, A, B, \pi)$, where $S$ represents the two hidden states and $O$ is the observed BOLD signal. The observation probability distribution $B$ is modeled as a Gaussian distribution.
+
+Our implementation proceeds as follows:
+\begin{enumerate}
+	\item \textbf{Initialization:} State parameters (mean and variance) are initialized using K-Means clustering.
+	\item \textbf{Iterative Refinement:} The model is refined over three cycles using the Viterbi algorithm to infer the most probable sequence of hidden states, followed by a re-estimation of the state parameters.
+	\item \textbf{Temporal Stability:} A final post-processing step ensures temporal stability by merging any state lasting less than 3 Repetition Times (TRs).
+\end{enumerate}
+This approach allows us to capture switch-like, threshold-based dynamics fundamental to neural processing, yielding a plausible binary time series for each Region of Interest (ROI).
+
+\subsection{Structure Learning with Priors}
+Inferring network models from fMRI time series is an inherently ill-posed problem, as the number of potential interactions far exceeds the available time points. To overcome this and avoid overfitting, we employed a hybrid structure learning algorithm that synergistically integrates data-driven dynamics with neuroanatomical priors.
+
+We construct a single hybrid influence matrix, $W_{hybrid}$, for each subject. This matrix balances the individual's specific dynamics with a structural reference derived from the group average. The data-driven component, $W_{dyn}$, is generated using the \texttt{dynGENIE3} algorithm on the continuous BOLD time series. The structural reference, $A_{con}$, is a probabilistic consensus matrix derived from thresholding group-average functional connectivity matrices. These are combined via a weighted linear combination:
+\begin{equation}
+	W_{hybrid} = (\alpha \cdot W_{dyn,norm}) + ((1 - \alpha) \cdot A_{con})
+\end{equation}
+where $\alpha$ is set to 0.7.
+
+Using $W_{hybrid}$, we identify the top potential regulators for each target node. We then generate all possible combinations of these regulators (up to a size of 6) and infer the most parsimonious Boolean rules using the Quine-McCluskey algorithm. The ``goodness-of-fit'' for each rule is evaluated using the Coefficient of Determination (COD). Finally, a set of predictors is selected and assigned probabilities based on their normalized COD scores, resulting in a comprehensive, subject-specific PBN.
+
+\section{Application: The Alzheimer's Spectrum}
+
+\subsection{Progressive Disconnection}
+We applied this framework to a cohort from the Alzheimer's Disease Neuroimaging Initiative (ADNI) database. Our robust statistical analysis identified five significant connections that exhibited a linear decline in influence throughout the disease spectrum (Normal $\to$ MCI $\to$ AD).
+
+The most profound finding was the progressive disruption of pathways originating from the Default Mode Network (DMN) and targeting the Medial Temporal Lobe (MTL). Specifically, we observed a significant reduction in the directed influence from the right Precuneus (a DMN hub) to the left Hippocampus (MTL). Similar degradation patterns were observed in connections from the Medial Orbital Frontal Gyrus and Angular Gyrus to the Hippocampus.
+
+These findings provide quantitative evidence for the ``disconnection syndrome'' hypothesis. The linear nature of the decline—highest in Normal controls, intermediate in MCI, and lowest in AD—suggests that our PBN framework is sensitive enough to capture the graded, continuous nature of neurodegeneration, rather than viewing AD merely as a static lesion-based disorder.
+
+\subsection{Implications for Modeling}
+This study demonstrates that PBNs can successfully capture the degradation of biological signals, providing a validated model structure for the control theories discussed in the next chapters. By confirming that the inferred Boolean dynamics align with established neuropathological models—specifically the vulnerability of DMN-MTL pathways—we establish that PBNs are not just theoretical constructs but are capable of representing the physical reality of brain network dysfunction. This validation is a prerequisite for the subsequent development of control strategies aimed at restoring these lost connectivity patterns.
+	
+\chapter{Theoretical Foundations: Optimal Control with Hard Constraints}
+\label{chap:theory}
+
+\textit{Based on: Ching et al.~(2009)~\cite{ching2009optimal}}
+
+\section{Problem Formulation}
+Once a PBN model is established, the goal shifts to intervention. Following \cite{ching2009optimal}, we formulate an optimal finite-horizon control problem with a \emph{hard constraint} on the maximum number of allowable interventions.
+
+\subsection{System Dynamics}
+Let $v(t) \in \mathbb{R}^{2^n}$ denote the state probability distribution vector at time $t$ over the $2^n$ Boolean network states (for $n$ genes). The evolution of a PBN can be viewed as a Markov chain process.
+
+Without external control, the PBN evolves according to a fixed transition probability matrix $P_0 \in \mathbb{R}^{2^n \times 2^n}$. For an instantaneously random PBN, $P_0$ is a mixture of constituent Boolean networks:
+\begin{equation}
+	P_0 = \sum_{j=1}^{N} p_j A_j,
+\end{equation}
+where $A_j$ is the transition matrix of the $j$-th constituent Boolean network, $p_j \ge 0$ is its selection probability, and $\sum_{j=1}^{N} p_j = 1$.
+
+When a control is applied, the system dynamics change. We assume the availability of alternative transition matrices $P_1, P_2, \dots$ corresponding to different intervention types. For simplicity, we consider the case of a single type of control and denote the controlled transition matrix by $P_1$.
+
+At each time step, the control variable takes a binary value $u(t) \in \{0,1\}$, where $u(t)=0$ means no control is applied and $u(t)=1$ means control is applied. The resulting evolution is
+\begin{equation}
+	v(t+1) = P_{u(t)}\, v(t), \qquad t = 0,1,\dots,T-1,
+\end{equation}
+where $P_{u(t)} \in \{P_0,P_1\}$.
+
+To be consistent with the notation in \cite{ching2009optimal}, we also represent the control history up to time $t$ by a Boolean string $w_t = i_t i_{t-1}\dots i_1$ with $i_\tau \in \{0,1\}$. The corresponding distribution is written as
+\begin{equation}
+	v(w_t) = P_{i_t} P_{i_{t-1}} \cdots P_{i_1}\, v_0,
+\end{equation}
+where $v_0$ is the initial distribution.
+
+\section{Hard Constraints}
+
+\subsection{Objective Function}
+Let $z \in \mathbb{R}^{2^n}$ be a target (desirable) state distribution and let $\lVert \cdot \rVert$ denote a chosen vector norm (e.g., $\ell_1$, $\ell_2$, or $\ell_\infty$). Following the average-distance formulation in \cite{ching2009optimal}, the objective over a finite horizon $T$ is
+\begin{equation}
+	J = \frac{1}{T} \sum_{t=1}^{T} \lVert v(t) - z \rVert.
+\end{equation}
+Since $1/T$ is a constant, minimizing $J$ is equivalent to minimizing the unnormalized sum $\sum_{t=1}^{T} \lVert v(t) - z \rVert$, which is the form used in the dynamic programming recursion.
+
+\subsection{Hard Constraint on the Number of Controls}
+In clinical applications, treatments cannot be applied indefinitely due to toxicity or side effects. We impose a hard budget $K$ on the total number of interventions within the horizon:
+\begin{equation}
+	\sum_{t=1}^{T} u(t) \leq K,
+\end{equation}
+where $u(t) \in \{0,1\}$. This constraint is biologically meaningful; for example, radiation and chemotherapy have cumulative toxicity, and patients may tolerate at most $K$ treatments during a period of length $T$.
+
+\section{Dynamic Programming Solution}
+We solve the constrained optimization problem using probabilistic dynamic programming \cite{ching2009optimal}.
+
+\subsection{Value Function Definition}
+Define the cost-to-go function
+\begin{equation}
+	D(v(w_t), t, k), \qquad 1 \le t \le T,\;\; 0 \le k \le K,
+\end{equation}
+as the minimum total distance to the terminal time $T$ when the system is at distribution $v(w_t)$ at time $t$ and the number of controls used so far is $k$.
+
+\subsection{Recurrence Relation}
+The Bellman recursion (computed backward in time) is
+\begin{equation}
+	D(v(w_{t-1}), t-1, k)
+	=
+	\min\Big\{
+	\lVert v(0w_{t-1}) - z \rVert + D(v(0w_{t-1}), t, k),\;
+	\lVert v(1w_{t-1}) - z \rVert + D(v(1w_{t-1}), t, k+1)
+	\Big\},
+	\label{eq:bellman_hard}
+\end{equation}
+where the next-step distributions are
+\begin{equation}
+	v(0w_{t-1}) = P_0\, v(w_{t-1}),
+	\qquad
+	v(1w_{t-1}) = P_1\, v(w_{t-1}).
+\end{equation}
+The first term in \eqref{eq:bellman_hard} corresponds to choosing $u(t)=0$ (no control) and the second corresponds to choosing $u(t)=1$ (control), which increases the control count from $k$ to $k+1$.
+
+\subsection{Boundary Conditions}
+The recursion is subject to the boundary conditions
+\begin{align}
+	D(v(w_T), T, k) &= \lVert v(w_T) - z \rVert, \qquad 0 \le k \le K, \label{eq:bc_terminal_hard}\\
+	D(v(w_t), t, K+1) &= \infty, \qquad \text{for all } t \text{ and } w_t. \label{eq:bc_infeasible_hard}
+\end{align}
+Condition \eqref{eq:bc_infeasible_hard} enforces the hard constraint: any path requiring more than $K$ controls is infeasible and is assigned infinite cost.
+
+\section{Dynamic Programming Algorithm}
+Algorithm~\ref{alg:dp_control} summarizes the backward induction procedure.
+
+\begin{algorithm}[H]
+	\caption{DP for Optimal Control with Hard Constraints}
+	\label{alg:dp_control}
+	\begin{algorithmic}[1]
+		\Require Initial distribution $v_0$; target distribution $z$; transition matrices $P_0$ (no control), $P_1$ (control); time horizon $T$; max controls $K$
+		\Ensure Minimum total distance $J^*$ and an optimal policy $\pi$
+		
+		\Statex \Comment{\textbf{Phase 1: Initialization at terminal time}}
+		\For{each reachable history $w_T$}
+		\For{$k \leftarrow 0$ to $K$}
+		\State $D(v(w_T), T, k) \leftarrow \lVert v(w_T) - z \rVert$
+		\EndFor
+		\EndFor
+		
+		\Statex \Comment{\textbf{Phase 2: Backward induction}}
+		\For{$t \leftarrow T$ \textbf{down to} $1$}
+		\For{each reachable history $w_{t-1}$}
+		\For{$k \leftarrow 0$ to $K$}
+		\Statex \quad \textit{// Action $u(t)=0$ (control OFF)}
+		\State $v_{\text{next}}^{0} \leftarrow P_0\, v(w_{t-1})$
+		\State $C_{\text{off}} \leftarrow \lVert v_{\text{next}}^{0} - z \rVert + D(v_{\text{next}}^{0}, t, k)$
+		
+		\Statex \quad \textit{// Action $u(t)=1$ (control ON)}
+		\If{$k < K$}
+		\State $v_{\text{next}}^{1} \leftarrow P_1\, v(w_{t-1})$
+		\State $C_{\text{on}} \leftarrow \lVert v_{\text{next}}^{1} - z \rVert + D(v_{\text{next}}^{1}, t, k+1)$
+		\Else
+		\State $C_{\text{on}} \leftarrow \infty$
+		\EndIf
+		
+		\Statex \quad \textit{// Bellman update}
+		\If{$C_{\text{off}} \le C_{\text{on}}$}
+		\State $D(v(w_{t-1}), t-1, k) \leftarrow C_{\text{off}}$
+		\State $\pi(w_{t-1}, k) \leftarrow 0$
+		\Else
+		\State $D(v(w_{t-1}), t-1, k) \leftarrow C_{\text{on}}$
+		\State $\pi(w_{t-1}, k) \leftarrow 1$
+		\EndIf
+		\EndFor
+		\EndFor
+		\EndFor
+		
+		\Statex \Comment{\textbf{Phase 3: Termination}}
+		\State $J^* \leftarrow D(v_0, 0, 0)$
+		\State \Return $J^*$ and policy table $\pi$
+	\end{algorithmic}
+\end{algorithm}
+
+The main computational cost arises from matrix--vector multiplications. Following \cite{ching2009optimal}, each constituent transition matrix $A_j$ has exactly one nonzero entry per column; therefore the mixture $P_0=\sum_{j=1}^{N} p_j A_j$ has at most $N$ nonzero entries per column, i.e., at most $N2^n$ nonzero entries in total. Using sparse multiplication, the computational cost of each multiplication $P_u v$ is at most $O(N2^n)$. The total number of feasible control sequences (and hence the number of distinct reachable distributions) is bounded by the number of ways to choose at most $K$ control times over a horizon of length $T$, namely $\sum_{j=0}^{K} \binom{T}{j}$.
+	
+
+	\chapter{Modern Approaches: RL-Based Control in Melanoma Resistance}
+	\label{chap:rl_control}
+	
+	\textit{Based on: Liu (BIBM 2025)~\cite{liu2025melanoma}}
+	
+	\section{Limitations of Classical Control}
+	While the dynamic programming theory presented in Chapter 3 provides a rigorous foundation for optimal control, it faces significant computational hurdles when applied to biological networks of realistic size. The primary limitation is the ``curse of dimensionality.'' As noted in recent literature, the search space for control policies grows double-exponentially with the number of nodes in the network~\cite{liu2025melanoma}.
+	
+	For a 12-gene network, the state space size is $2^{12} = 4096$. While this is manageable for state enumeration, the control problem requires calculating transitions and costs over a time horizon $T$. Exact methods like the backward induction algorithm (Algorithm \ref{alg:dp_control}) require matrix operations that become prohibitively expensive as the network connectivity increases. Furthermore, classical methods often struggle to incorporate complex, non-linear biological constraints or to discover non-intuitive strategies without explicit hard-coding. This necessitates a modern, approximation-based approach using Reinforcement Learning (RL).
+	
+\section{The PBN-RL Framework}
+
+To overcome the computational intractability of exact methods, we reformulate the control problem as a Markov Decision Process (MDP) and solve it using Deep Reinforcement Learning. This approach allows for the exploration of the state space without requiring a full model of the transition probability matrix.
+
+\subsection{MDP Formulation}
+The problem is structured as an MDP tuple $(\mathcal{S}, \mathcal{A}, P, R)$, defined specifically for the melanoma resistance network:
+
+\begin{itemize}
+	\item \textbf{State Space ($\mathcal{S}$):} The state space comprises all possible binary configurations of the $n=12$ gene network, totaling $|\mathcal{S}| = 2^{12} = 4096$ states. The state vector at time $t$ is denoted as $\mathbf{x}(t) = (x_1(t), \dots, x_n(t))$, where $x_i(t) \in \{0, 1\}$ represents the expression status (OFF/ON) of genes such as \textit{LOXL2}, \textit{JUN}, and \textit{AXL}.
+	
+	\item \textbf{Action Space ($\mathcal{A}$):} The action space $\mathcal{A}$ includes a ``Do Nothing'' action and specific single-gene perturbations. An action $a_t$ transforms the current state $\mathbf{x}(t)$ into a post-intervention state $\tilde{\mathbf{x}}(t)$. The transition dynamics $P(\mathbf{x}(t+1) | \mathbf{x}(t), a_t)$ are governed by the underlying PBN logic applied to $\tilde{\mathbf{x}}(t)$:
+	\begin{equation}
+		x_i(t+1) = f_j^{(i)}(\tilde{\mathbf{x}}(t))
+	\end{equation}
+	where $f_j^{(i)}$ is a Boolean predictor function selected probabilistically from the set of predictors $\mathcal{F}_i$ for gene $i$.
+	
+	\item \textbf{Reward Function ($R$):} The reward structure is designed to prioritize therapeutic efficacy over sparsity. The immediate reward $r_t$ is defined as:
+	\begin{equation}
+		r_t(\mathbf{x}_t) = 
+		\begin{cases} 
+			+100 & \text{if } \mathbf{x}_t \in \mathcal{A}_{\text{sensitive}} \\
+			-5 & \text{if } \mathbf{x}_t \in \mathcal{A}_{\text{resistant}} \\
+			0 & \text{otherwise}
+		\end{cases}
+	\end{equation}
+	Here, $\mathcal{A}_{\text{sensitive}}$ and $\mathcal{A}_{\text{resistant}}$ represent the basins of attraction for the responder and non-responder phenotypes, respectively. The zero cost for actions encourages the agent to intervene actively within the clinical horizon (e.g., 15 steps) rather than avoiding treatment to save ``energy,'' reflecting the clinical priority of overcoming resistance~\cite{liu2025melanoma}.
+\end{itemize}
+
+\subsection{Proximal Policy Optimization (PPO)}
+To solve this MDP, the framework utilizes Proximal Policy Optimization (PPO)~\cite{schulman2017proximal}. Unlike standard Deep Q-Networks (DQN) which approximate values, PPO optimizes the policy $\pi_\theta$ directly. It was chosen for its stability in stochastic biological environments.
+
+The agent maximizes the clipped surrogate objective function $L^{CLIP}(\theta)$, which prevents destabilizing policy updates:
+
+\begin{equation}
+	L^{CLIP}(\theta) = \mathbb{E}_t \left[ \min \left( r_t(\theta)\hat{A}_t, \text{clip}(r_t(\theta), 1-\epsilon, 1+\epsilon)\hat{A}_t \right) \right]
+\end{equation}
+
+Where:
+\begin{itemize}
+	\item $r_t(\theta)$ is the probability ratio between the new and old policies:
+	\begin{equation}
+		r_t(\theta) = \frac{\pi_\theta(a_t|\mathbf{x}_t)}{\pi_{\theta_{old}}(a_t|\mathbf{x}_t)}
+	\end{equation}
+	\item $\hat{A}_t$ is the advantage estimate calculated using Generalized Advantage Estimation (GAE), which measures how much better an action is compared to the average action in that state.
+	\item $\epsilon$ is a hyperparameter (set to $0.2$ in this study) that bounds the policy update, ensuring that the new policy does not deviate excessively from the old one.
+\end{itemize}
+
+This clipping mechanism is crucial for PBN control because the stochastic nature of gene updates can lead to high variance in trajectories; PPO ensures the agent learns robust strategies rather than overfitting to noise.
+	
+	\section{Results: The ``Hit-and-Run'' Strategy}
+	
+	The application of the PBN-RL framework yielded a non-intuitive therapeutic strategy that contrasts with the sustained inhibition typically prescribed in classical control settings.
+	
+	\subsection{Discovery of Transient Interventions}
+	The RL agent discovered a time-dependent strategy termed ``hit-and-run.'' Instead of permanently suppressing a target gene, the optimal policy involves a precise, temporary perturbation.
+	
+	Specifically, the agent identified that a \textbf{4-step inhibition of \textit{LOXL2}} is the optimal intervention, achieving a $93.45\%$ success rate in driving the network from a resistant to a sensitive state~\cite{liu2025melanoma}. 
+	
+	This result is significant for two reasons:
+	\begin{enumerate}
+		\item \textbf{Non-Monotonicity:} The success rate does not increase linearly with the duration of inhibition. Sustained inhibition performed worse than the 4-step transient inhibition, highlighting a complex dynamic response that static analysis might miss.
+		\item \textbf{Soft Constraints via Learning:} Although the reward function did not explicitly penalize drug usage (action cost was 0), the agent learned a policy that effectively satisfies the ``soft'' constraint of minimizing drug exposure. After the initial 4-step priming phase, the agent's policy switched to ``Do Nothing,'' allowing the network's intrinsic dynamics to complete the transition to the sensitive attractor.
+	\end{enumerate}
+	
+	\subsection{Explainable AI (XAI)}
+	A major criticism of Deep RL in medicine is the ``black box'' nature of neural networks. To address this, the framework employed SHapley Additive exPlanations (SHAP)~\cite{nohara2022explanation} to deconstruct the agent's decision-making process.
+	
+	The SHAP analysis revealed that the agent was not acting randomly but was responding to specific ``vulnerability signatures'' in the network state:
+	\begin{itemize}
+		\item \textbf{Context-Dependent Logic:} The agent prioritized targets based on the state of other network nodes. For instance, it targeted \textit{MAP2K3} when \textit{NRAS} was high (intercepting the MAPK cascade), but switched to targeting \textit{JUN} when \textit{TAGLN} was high (disrupting mesenchymal transition programs).
+		\item \textbf{Mechanism of the Hit-and-Run:} The analysis showed that the transient inhibition of \textit{LOXL2} was sufficient to erase the molecular signature driving resistance (specifically lowering the importance of \textit{NRAS} and \textit{RELA}). Once these ``intervention triggers'' were removed, the network reached a tipping point where it could self-correct into the sensitive phenotype without further external input.
+	\end{itemize}
+	
+	This mechanistic insight bridges the gap between computational optimization and biological understanding, validating that the RL agent learned to exploit the specific regulatory logic of the \textit{JUN}/\textit{LOXL2} axis.
+	
+	
+	
+	
+	
+\chapter{Conclusion and Future Work}
+
+\section{Synthesis}
+We have traversed the full pipeline of Systems Biology, moving from raw observational data to actionable therapeutic strategies:
+
+\begin{enumerate}
+	\item \textbf{Inference (Modeling):} We successfully addressed the inverse problem by constructing a novel framework to infer Probabilistic Boolean Networks (PBNs) from fMRI data. This allowed us to quantify the ``disconnection syndrome'' in Alzheimer's Disease, specifically identifying the degradation of the effective connectivity from the Default Mode Network to the Medial Temporal Lobe.
+	\item \textbf{Theory (Classical Control):} We established the theoretical foundations of intervention using finite-horizon optimal control with hard constraints. While mathematically rigorous, we identified that exact dynamic programming methods suffer from the ``curse of dimensionality,'' limiting their applicability to small gene networks.
+	\item \textbf{Application (Intelligent Control):} To overcome these computational limits, we implemented a Deep Reinforcement Learning (PBN-RL) framework. Applied to a metastatic melanoma network, the agent discovered a counter-intuitive ``hit-and-run'' strategy—a transient 4-step inhibition of \textit{LOXL2}—that effectively reverses drug resistance while satisfying soft constraints on toxicity.
+\end{enumerate}
+
+\section{Future Directions}
+The integration of these distinct methodologies opens several promising avenues for future research, particularly in the domain of precision medicine.
+
+
+
+\subsection{Transfer Learning Across Patient Cohorts}
+Biological networks exhibit significant inter-patient heterogeneity. A control policy trained on one specific melanoma network or one specific Alzheimer's patient may not generalize to others. Future research should explore \textit{Transfer Learning}, where an RL agent pre-trained on a ``consensus'' network (derived from group averages) is fine-tuned on individual patient data. This would drastically reduce the computational time required to generate personalized treatment plans.
+
+\subsection{Experimental Validation}
+Finally, the ``hit-and-run'' strategy discovered in Chapter 4 remains a computational prediction. Collaboration with wet-lab biologists is essential to validate these findings \textit{in vitro}. Specifically, time-course experiments using CRISPR-Cas9 or small molecule inhibitors on melanoma cell lines could confirm if transient inhibition of \textit{LOXL2} indeed triggers a permanent state shift to a therapy-sensitive attractor, as predicted by our model.
+
+
+
+\section*{Acknowledgement}
+This report is the culmination of a year-long project that synthesizes the work I have carried out throughout my undergraduate studies. I am deeply grateful to all those who have supported me academically and personally during this journey.
+
+First and foremost, I would like to express my sincere gratitude to my supervisor, Prof.\ Ching Wai Ki, for his invaluable guidance, patience, and encouragement. I have had the privilege of working with him since my second year, and I have benefited greatly from his expertise, insight, and rigorous standards in research. His thoughtful advice not only shaped the direction and structure of this project, but also helped me develop stronger mathematical maturity and research habits. I am also thankful for his trust and continuous support of my outreach and academic activities, which played a crucial role in enabling me to complete an overseas internship at the National University of Singapore with Prof.\ Zhang Louxin.
+
+I would like to extend my sincere thanks to Prof.\ Zhang Louxin for his mentorship and generosity during my internship at NUS. The experience broadened my perspective on research in systems biology and strengthened my interest in connecting mathematical modeling with real-world questions. I am grateful for the opportunity to learn from his expertise and for the supportive research environment he provided.
+
+I also wish to thank the Department of Mathematics at The University of Hong Kong for its continuous mentorship and for offering the opportunity to undertake the MATH4999 project. I am deeply appreciative of the training I received through the HKU mathematics curriculum, which built the foundation necessary for this work. My gratitude also goes to the faculty members and teaching staff whose courses, guidance, and feedback have shaped my understanding and appreciation of mathematics.
+
+Finally, I would like to thank my friends and family for their constant support and encouragement throughout my undergraduate years. Their understanding and companionship have been essential in helping me stay motivated and resilient during challenging periods. I am sincerely grateful to everyone who has contributed, directly or indirectly, to the completion of this report.
+
+	
+
+	
+\bibliographystyle{ieeetr}
+\bibliography{ref.bib}
+	
+\end{document}
