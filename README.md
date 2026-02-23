@@ -1,4 +1,4 @@
-HKU MATH4999 Final Year Project
+# HKU MATH4999 Final Year Project
 
 This repository contains the source code, programmatic presentations, and the final report for my Final Year Project (MATH4999) at the University of Hong Kong (HKU). The project explores **Probabilistic Boolean Networks (PBNs)** and its applications in systems biology.
 
